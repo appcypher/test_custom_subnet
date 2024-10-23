@@ -109,14 +109,38 @@ int assign_ip_address(const char* iface, const char* local_ip, const char* remot
     return 0;
 }
 
-// Function to process packets (this example simply echoes the packet back)
+
+// Function to process packets
 void process_packet(int fd, unsigned char *buffer, ssize_t nbytes) {
-    // For demonstration, we're just writing the packet back
-    ssize_t nwritten = write(fd, buffer, nbytes);
+    // Ensure we have at least the 4-byte header
+    if (nbytes < 4) {
+        fprintf(stderr, "Packet too small\n");
+        return;
+    }
+
+    // Extract the protocol family
+    uint32_t proto_family_net = *(uint32_t *)buffer; // Network byte order
+    uint32_t proto_family = ntohl(proto_family_net); // Host byte order
+
+    // Point to the actual packet data
+    unsigned char *packet = buffer + 4;
+    ssize_t packet_len = nbytes - 4;
+
+    // For demonstration, we'll echo back the packet
+    // Reconstruct the buffer with the protocol header
+    unsigned char write_buffer[BUFFER_SIZE];
+
+    // Set the protocol family in network byte order
+    *(uint32_t *)write_buffer = proto_family_net;
+
+    // Copy the packet data
+    memcpy(write_buffer + 4, packet, packet_len);
+
+    ssize_t nwritten = write(fd, write_buffer, packet_len + 4);
     if (nwritten < 0) {
         perror("write");
     } else {
-        // Uncomment the line below to see the echoed packet size
+        // Uncomment to see the echoed packet size
         // printf("Echoed packet of %zd bytes\n", nwritten);
     }
 }
